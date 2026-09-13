@@ -1,0 +1,22 @@
+# 虚拟环境（5 GB，含 torch + cuda 运行时）
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# 训练产物：只保留小的元数据（summary/config/metrics/eval），权重不进仓库
+runs/**/*.pt
+runs/**/*.npz
+
+# 浏览器验证产生的中间产物（可由 game/make_test_page.py 重新生成）
+game/_*.html
+game/js_trace.json
+game/*.log
+
+# 备份 / 临时
+*.bak
+*.html.bak
+*.log
+.DS_Store
+nohup.out

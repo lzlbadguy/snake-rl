@@ -1,0 +1,13 @@
+{
+  "updates": 212,
+  "env_steps": 55312384,
+  "wall_min": 46.1,
+  "eval_mean": 62.79,
+  "eval_median": 65.0,
+  "eval_max": 92,
+  "eval_p10": 39.900000000000006,
+  "cause_wall": 0.34,
+  "cause_self": 0.526,
+  "cause_cap": 0.134,
+  "cause_win": 0.0
+}

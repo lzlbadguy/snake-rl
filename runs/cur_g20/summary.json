@@ -1,0 +1,15 @@
+{
+  "updates": 93,
+  "env_steps": 12058624,
+  "wall_min": 32.9,
+  "eval_mean": 65.26,
+  "eval_median": 67.0,
+  "eval_max": 80,
+  "eval_p10": 53.0,
+  "cause_wall": 0.012,
+  "cause_self": 0.292,
+  "cause_cap": 0.696,
+  "cause_win": 0.0,
+  "doomed_steps_pct": 0.06,
+  "doomed_episodes_pct": 26.0
+}

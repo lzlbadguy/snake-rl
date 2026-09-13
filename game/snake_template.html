@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>贪吃蛇 · Snake（含 AI 托管）</title>
+<style>
+  :root{
+    --bg:#0e1116;
+    --panel:#161b22;
+    --line:#232a35;
+    --fg:#e6edf3;
+    --dim:#8b949e;
+    --snake:#3fb950;
+    --head:#56d364;
+    --food:#f0883e;
+    --accent:#58a6ff;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    background:radial-gradient(1200px 700px at 50% -10%,#1a2230 0%,var(--bg) 60%);
+    color:var(--fg);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:14px;
+    min-height:100vh;
+    padding:24px;
+    user-select:none;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .hud{
+    width:100%;
+    max-width:560px;
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    gap:12px;
+  }
+  .hud h1{
+    font-size:15px;
+    font-weight:600;
+    letter-spacing:.14em;
+    margin:0;
+    color:var(--dim);
+    text-transform:uppercase;
+  }
+  .scores{display:flex;gap:22px;align-items:baseline}
+  .score{display:flex;align-items:baseline;gap:7px}
+  .score .k{font-size:11px;letter-spacing:.1em;color:var(--dim);text-transform:uppercase}
+  .score .v{font-size:22px;font-weight:650;font-variant-numeric:tabular-nums}
+  #best{color:var(--dim)}
+  .bar{
+    width:100%;max-width:560px;
+    display:flex;align-items:center;gap:12px;
+    font-size:12px;color:var(--dim);
+  }
+  .bar button{
+    background:var(--panel);border:1px solid var(--line);border-radius:9px;
+    color:var(--fg);padding:6px 12px;font-size:12px;cursor:pointer;font-family:inherit;
+  }
+  .bar button:hover{border-color:#3a4553}
+  .bar button.on{background:#1f2d1f;border-color:#2ea043;color:var(--snake)}
+  .bar select{
+    background:var(--panel);border:1px solid var(--line);border-radius:7px;
+    color:var(--fg);padding:5px 7px;font-size:12px;font-family:inherit;
+  }
+  .bar .stats{margin-left:auto;font-variant-numeric:tabular-nums}
+  .bar label{display:inline-flex;align-items:center;gap:5px}
+  .bar input[type=checkbox]{accent-color:var(--snake);width:14px;height:14px;margin:0}
+  .stage{
+    position:relative;
+    width:min(88vw,560px);
+    aspect-ratio:1/1;
+    border-radius:16px;
+    overflow:hidden;
+    background:var(--panel);
+    border:1px solid var(--line);
+    box-shadow:0 24px 60px -24px rgba(0,0,0,.9), inset 0 0 0 1px rgba(255,255,255,.02);
+  }
+  canvas{display:block;width:100%;height:100%}
+  .overlay{
+    position:absolute;inset:0;
+    display:flex;flex-direction:column;
+    align-items:center;justify-content:center;
+    gap:10px;text-align:center;
+    background:rgba(14,17,22,.82);
+    backdrop-filter:blur(3px);
+    padding:24px;
+    transition:opacity .18s ease;
+  }
+  .overlay.hidden{opacity:0;pointer-events:none}
+  .overlay .big{font-size:26px;font-weight:700;letter-spacing:.01em}
+  .overlay .sub{font-size:13px;color:var(--dim);line-height:1.7;max-width:330px}
+  .overlay .sub b{color:var(--fg);font-weight:600}
+  kbd{
+    background:#20262f;border:1px solid #303845;border-bottom-width:2px;
+    border-radius:5px;padding:1px 6px;font-size:11px;font-family:inherit;color:var(--fg);
+  }
+  .hint{font-size:12px;color:var(--dim);height:16px}
+  .hint b{color:var(--fg);font-weight:600}
+  .pad{
+    display:none;
+    grid-template-columns:repeat(3,56px);
+    grid-template-rows:repeat(2,56px);
+    gap:8px;
+    margin-top:2px;
+  }
+  .pad button{
+    background:var(--panel);border:1px solid var(--line);color:var(--fg);
+    border-radius:12px;font-size:19px;cursor:pointer;
+  }
+  .pad button:active{background:#20262f}
+  .pad .up{grid-column:2;grid-row:1}
+  .pad .left{grid-column:1;grid-row:2}
+  .pad .down{grid-column:2;grid-row:2}
+  .pad .right{grid-column:3;grid-row:2}
+  @media (hover:none) and (pointer:coarse){ .pad{display:grid} }
+</style>
+</head>
+<body>
+
+<div class="hud">
+  <h1>Snake</h1>
+  <div class="scores">
+    <div class="score"><span class="k">得分</span><span class="v" id="score">0</span></div>
+    <div class="score"><span class="k">最高</span><span class="v" id="best">0</span></div>
+  </div>
+</div>
+
+<div class="bar">
+  <button id="aiBtn" title="快捷键 I">AI 托管</button>
+  <label>速度
+    <select id="aiSpeed">
+      <option value="1">1×</option>
+      <option value="4" selected>4×</option>
+      <option value="16">16×</option>
+    </select>
+  </label>
+  <label class="chk"><input type="checkbox" id="shieldChk" checked> 安全层</label>
+  <span id="aiStats" class="stats">未启用</span>
+</div>
+
+<div class="stage">
+  <canvas id="cv"></canvas>
+  <div class="overlay" id="ov">
+    <div class="big" id="ovTitle">准备开始</div>
+    <div class="sub" id="ovSub">
+      用 <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> 控制方向（或 <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>）<br>
+      按 <b>任意方向键</b> 开始 · <kbd>空格</kbd> 暂停 · <kbd>R</kbd> 重开
+    </div>
+  </div>
+</div>
+
+<div class="hint" id="hint"></div>
+
+<div class="pad">
+  <button class="up"    data-dir="up"    aria-label="上">↑</button>
+  <button class="left"  data-dir="left"  aria-label="左">←</button>
+  <button class="down"  data-dir="down"  aria-label="下">↓</button>
+  <button class="right" data-dir="right" aria-label="右">→</button>
+</div>
+
+<script>
+/* 策略权重由 build_game.py 内联进来（base64 float32，来自 PPO 训练结果的导出） */
+const POLICY = /*__POLICY_DATA__*/;
+</script>
+
+<script>
+(() => {
+  "use strict";
+
+  const COLS = 20, ROWS = 20;          // 网格
+  const BASE_MS = 135;                 // 初始每步耗时(ms)
+  const MIN_MS  = 68;                  // 最快
+  const SPEEDUP_EVERY = 4;             // 每吃 4 个加速一次
+
+  const cv = document.getElementById("cv");
+  const ctx = cv.getContext("2d");
+  const elScore = document.getElementById("score");
+  const elBest  = document.getElementById("best");
+  const ov      = document.getElementById("ov");
+  const ovTitle = document.getElementById("ovTitle");
+  const ovSub   = document.getElementById("ovSub");
+  const hint    = document.getElementById("hint");
+  const elAiBtn = document.getElementById("aiBtn");
+  const elAiSpeed = document.getElementById("aiSpeed");
+  const elAiStats = document.getElementById("aiStats");
+  const elShield = document.getElementById("shieldChk");
+
+  let cell = 24, dpr = 1;
+
+  // ---------- 状态 ----------
+  let snake, dir, queue, food, score, best, state, stepMs, acc, last, eaten;
+  best = Number(localStorage.getItem("snake.best") || 0);
+  elBest.textContent = best;
+
+  function reset() {
+    const cy = Math.floor(ROWS / 2);
+    snake = [{x:5,y:cy},{x:4,y:cy},{x:3,y:cy}];
+    dir = {x:1,y:0};
+    queue = [];
+    score = 0;
+    stepMs = BASE_MS;
+    acc = 0;
+    eaten = 0;
+    state = "ready";
+    elScore.textContent = "0";
+    hint.textContent = "";
+    placeFood();
+    showOverlay("准备开始",
+      '用 <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> 控制方向（或 <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>）<br>' +
+      '按 <b>任意方向键</b> 开始 · <kbd>空格</kbd> 暂停 · <kbd>R</kbd> 重开');
+  }
+
+  function showOverlay(title, sub) {
+    ovTitle.textContent = title;
+    ovSub.innerHTML = sub;
+    ov.classList.remove("hidden");
+  }
+  function hideOverlay() { ov.classList.add("hidden"); }
+
+  function placeFood() {
+    const free = [];
+    for (let y = 0; y < ROWS; y++)
+      for (let x = 0; x < COLS; x++)
+        if (!snake.some(s => s.x === x && s.y === y)) free.push({x,y});
+    food = free.length ? free[(Math.random() * free.length) | 0] : null;
+  }
+
+  // ---------- 尺寸 ----------
+  function resize() {
+    const r = cv.getBoundingClientRect();
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    cv.width  = Math.round(r.width  * dpr);
+    cv.height = Math.round(r.height * dpr);
+    cell = cv.width / COLS;          // 每格 device px
+  }
+
+  // ---------- 输入 ----------
+  const DIRS = {
+    up:    {x:0,y:-1}, down: {x:0,y:1},
+    left:  {x:-1,y:0}, right:{x:1,y:0}
+  };
+  const KEYMAP = {
+    ArrowUp:"up",    w:"up",    W:"up",
+    ArrowDown:"down",s:"down",  S:"down",
+    ArrowLeft:"left",a:"left",  A:"left",
+    ArrowRight:"right",d:"right",D:"right"
+  };
+
+  function push(name) {
+    const nd = DIRS[name];
+    if (!nd) return;
+    const ref = queue.length ? queue[queue.length - 1] : dir;
+    if (nd.x === -ref.x && nd.y === -ref.y) return;
+    if (nd.x === ref.x && nd.y === ref.y) return;
+    if (queue.length < 2) queue.push(nd);
+  }
+
+  function onDir(name) {
+    if (state === "ready" || state === "over") { start(); push(name); }
+    else if (state === "playing") push(name);
+  }
+
+  function start() {
+    if (state === "over") reset();
+    state = "playing";
+    last = performance.now();
+    acc = 0;
+    hideOverlay();
+    hint.innerHTML = '<kbd>空格</kbd> 暂停 · <kbd>R</kbd> 重开' +
+                     (aiOn ? ' · AI 托管中' : '');
+  }
+
+  function togglePause() {
+    if (state === "playing") {
+      state = "paused";
+      showOverlay("已暂停", "按 <kbd>空格</kbd> 继续 · <kbd>R</kbd> 重开");
+    } else if (state === "paused") {
+      state = "playing";
+      last = performance.now();
+      hideOverlay();
+    }
+  }
+
+  function gameOver() {
+    state = "over";
+    if (score > best) {
+      best = score;
+      localStorage.setItem("snake.best", String(best));
+      elBest.textContent = best;
+    }
+    if (aiOn) {
+      aiEpisodes++;
+      aiScores.push(score);
+      aiLastScore = score;
+      updateAiStats();
+      showOverlay(`AI 本局 ${score}`,
+        `最高 <b>${best}</b> · 400 格满盘上限 <b>397</b><br>自动重开中…`);
+      setTimeout(() => { if (aiOn) { reset(); start(); } }, 420);
+      return;
+    }
+    showOverlay("游戏结束",
+      `本局得分 <b>${score}</b> · 最高 <b>${best}</b><br>` +
+      '按 <b>方向键</b> 或 <kbd>R</kbd> 再来一局');
+  }
+
+  window.addEventListener("keydown", e => {
+    if (e.key === "i" || e.key === "I") { e.preventDefault(); toggleAI(); return; }
+    if (e.key === " " || e.code === "Space") {
+      e.preventDefault();
+      if (state === "ready" || state === "over") start(); else togglePause();
+      return;
+    }
+    if (e.key === "r" || e.key === "R") { e.preventDefault(); reset(); return; }
+    const name = KEYMAP[e.key];
+    if (name) { e.preventDefault(); onDir(name); }
+  }, {passive:false});
+
+  document.querySelectorAll(".pad button").forEach(b => {
+    b.addEventListener("click", () => onDir(b.dataset.dir));
+  });
+  cv.addEventListener("pointerdown", () => { if (state === "ready" || state === "over") start(); });
+
+  // ---------- 逻辑 ----------
+  function step(forcedAction) {
+    if (forcedAction !== undefined) {
+      // AI 模式：相对动作 0=直行 1=左转 2=右转，直接落到当前方向上
+      dir = DIR_ARR[(dirIdx() + TURN_R[forcedAction] + 4) % 4];
+      queue = [];
+    } else if (queue.length) {
+      dir = queue.shift();
+    }
+
+    const head = {x: snake[0].x + dir.x, y: snake[0].y + dir.y};
+
+    // 撞墙 / 撞自己（尾巴当前格会移走，不算碰撞）
+    if (head.x < 0 || head.y < 0 || head.x >= COLS || head.y >= ROWS) return gameOver();
+    for (let i = 0; i < snake.length - 1; i++)
+      if (snake[i].x === head.x && snake[i].y === head.y) return gameOver();
+
+    snake.unshift(head);
+
+    if (food && head.x === food.x && head.y === food.y) {
+      score += 1;
+      elScore.textContent = score;
+      eaten++;
+      if (eaten % SPEEDUP_EVERY === 0) stepMs = Math.max(MIN_MS, stepMs - 8);
+      placeFood();
+    } else {
+      snake.pop();
+    }
+  }
+
+  // ---------- 绘制 ----------
+  function roundRect(c, x, y, w, h, r) {
+    r = Math.min(r, w / 2, h / 2);
+    c.beginPath();
+    c.moveTo(x + r, y);
+    c.arcTo(x + w, y,     x + w, y + h, r);
+    c.arcTo(x + w, y + h, x,     y + h, r);
+    c.arcTo(x,     y + h, x,     y,     r);
+    c.arcTo(x,     y,     x + w, y,     r);
+    c.closePath();
+  }
+
+  function draw(now) {
+    const W = cv.width, H = cv.height;
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.clearRect(0, 0, W, H);
+
+    ctx.fillStyle = "#161b22";
+    ctx.fillRect(0, 0, W, H);
+    for (let y = 0; y < ROWS; y++) {
+      for (let x = 0; x < COLS; x++) {
+        if ((x + y) % 2 === 0) {
+          ctx.fillStyle = "rgba(255,255,255,0.014)";
+          ctx.fillRect(x * cell, y * cell, cell, cell);
+        }
+      }
+    }
+
+    if (food) {
+      const cx = (food.x + .5) * cell, cy = (food.y + .5) * cell;
+      const pulse = 0.86 + 0.14 * Math.sin(now / 260);
+      ctx.save();
+      ctx.shadowColor = "rgba(240,136,62,.65)";
+      ctx.shadowBlur = cell * .7;
+      ctx.fillStyle = "#f0883e";
+      ctx.beginPath();
+      ctx.arc(cx, cy, cell * 0.31 * pulse, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      ctx.fillStyle = "rgba(255,255,255,.55)";
+      ctx.beginPath();
+      ctx.arc(cx - cell*.09, cy - cell*.1, cell * .07, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    const n = snake.length;
+    for (let i = n - 1; i >= 0; i--) {
+      const s = snake[i];
+      const t = n === 1 ? 1 : i / (n - 1);
+      const inset = cell * (i === 0 ? 0.045 : 0.09);
+      const x = s.x * cell + inset, y = s.y * cell + inset;
+      const w = cell - inset * 2, h = cell - inset * 2;
+      const g = ctx.createLinearGradient(x, y, x + w, y + h);
+      const a = i === 0 ? "#56d364" : mix("#2ea043", "#3fb950", t);
+      g.addColorStop(0, a);
+      g.addColorStop(1, i === 0 ? "#3fb950" : mix("#238636", "#2ea043", t));
+      ctx.fillStyle = g;
+      if (i === 0) { ctx.save(); ctx.shadowColor = "rgba(63,185,80,.5)"; ctx.shadowBlur = cell * .5; }
+      roundRect(ctx, x, y, w, h, cell * (i === 0 ? 0.3 : 0.26));
+      ctx.fill();
+      if (i === 0) ctx.restore();
+    }
+
+    const hd = snake[0];
+    const ex = (hd.x + .5) * cell, ey = (hd.y + .5) * cell;
+    const off = cell * 0.19, r = cell * 0.098;
+    const fx = dir.x * cell * 0.16, fy = dir.y * cell * 0.16;
+    const pts = dir.x !== 0
+      ? [[ex + fx, ey - off], [ex + fx, ey + off]]
+      : [[ex - off, ey + fy], [ex + off, ey + fy]];
+    ctx.fillStyle = "#0d1117";
+    pts.forEach(([x, y]) => {
+      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    });
+    ctx.fillStyle = "rgba(255,255,255,.85)";
+    pts.forEach(([x, y]) => {
+      ctx.beginPath(); ctx.arc(x - r*.3, y - r*.3, r*.42, 0, Math.PI * 2); ctx.fill();
+    });
+  }
+
+  function mix(a, b, t) {
+    const pa = [1,3,5].map(i => parseInt(a.substr(i,2),16));
+    const pb = [1,3,5].map(i => parseInt(b.substr(i,2),16));
+    const c = pa.map((v,i) => Math.round(v + (pb[i]-v)*t));
+    return "rgb(" + c.join(",") + ")";
+  }
+
+  // ==========================================================
+  //  AI 托管：观测构造 / 前向推理
+  //  观测必须与 snake_env.py 的 VectorSnake.observe() 逐项一致，
+  //  否则策略会看到"训练时从未见过的输入"。
+  // ==========================================================
+  const OB = POLICY.obs_dim;
+  const MAXDIM = 20, PHI_SCALE = 40;
+  const DIR_ARR = [DIRS.up, DIRS.right, DIRS.down, DIRS.left];  // 与 Python 的 DY/DX 同序
+  const TURN_R = [0, -1, 1];                                    // 0=直行 1=左转 2=右转
+
+  let aiOn = false, aiSpeed = 4, aiEpisodes = 0, aiScores = [], aiLastScore = null;
+  let shieldOn = true;                 // 安全层默认开启
+
+  function b64ToF32(b64) {
+    const bin = atob(b64), n = bin.length;
+    const u8 = new Uint8Array(n);
+    for (let i = 0; i < n; i++) u8[i] = bin.charCodeAt(i);
+    return new Float32Array(u8.buffer);
+  }
+  (function initPolicy() {
+    for (const L of POLICY.layers) {
+      L.W = b64ToF32(L.w);      // (out, in) 行主序
+      L.B = b64ToF32(L.b);
+    }
+  })();
+
+  function dirIdx() {
+    for (let i = 0; i < 4; i++)
+      if (DIR_ARR[i].x === dir.x && DIR_ARR[i].y === dir.y) return i;
+    return 1;
+  }
+
+  function policyForward(x) {
+    let h = x;
+    for (let li = 0; li < POLICY.layers.length; li++) {
+      const L = POLICY.layers[li], out = L.out, inn = L.in;
+      const y = new Float32Array(out);
+      for (let o = 0; o < out; o++) {
+        let s = L.B[o];
+        const base = o * inn;
+        for (let i = 0; i < inn; i++) s += L.W[base + i] * h[i];
+        y[o] = (L.act === "tanh") ? Math.tanh(s) : s;
+      }
+      h = y;
+    }
+    return h;
+  }
+
+  // 从 src 出发在 occ 为障碍的网格上做 BFS，返回访问标记。
+  // 传入 dist 数组则同时记录距离（patch 观测需要距离，安全检查只需要可达性）。
+  function floodVis(occ, src, dist) {
+    const vis = new Uint8Array(COLS * ROWS);
+    vis[src] = 1;
+    if (dist) dist[src] = 0;
+    let frontier = [src], d = 0;
+    while (frontier.length) {
+      const next = [];
+      for (let fi = 0; fi < frontier.length; fi++) {
+        const c = frontier[fi], y = (c / COLS) | 0, x = c % COLS;
+        if (y > 0)        { const n = c - COLS; if (!vis[n] && !occ[n]) { vis[n]=1; if (dist) dist[n]=d+1; next.push(n); } }
+        if (y < ROWS - 1) { const n = c + COLS; if (!vis[n] && !occ[n]) { vis[n]=1; if (dist) dist[n]=d+1; next.push(n); } }
+        if (x > 0)        { const n = c - 1;    if (!vis[n] && !occ[n]) { vis[n]=1; if (dist) dist[n]=d+1; next.push(n); } }
+        if (x < COLS - 1) { const n = c + 1;    if (!vis[n] && !occ[n]) { vis[n]=1; if (dist) dist[n]=d+1; next.push(n); } }
+      }
+      d++;
+      frontier = next;
+    }
+    return vis;
+  }
+
+  function occGrid() {
+    const occ = new Uint8Array(COLS * ROWS);
+    for (let i = 0; i < snake.length; i++) occ[snake[i].y * COLS + snake[i].x] = 1;
+    return occ;
+  }
+
+  // ==========================================================
+  //  安全层：屏蔽"走完这一步尾巴不可达"的动作
+  //  判据与 snake_env.py::VectorSnake.safety_flags() 逐项一致：
+  //    安全 = 走完这一步还活着 且（尾巴仍可达 或 可达面积 ≥ 走完后的身体长度）
+  //  关键细节：吃食物那一步蛇会变长、尾巴不让位；检查目标是**当前尾巴那一格**
+  //  （它下一步会让开，必须当作可通行）—— 拿新尾巴当目标会让判据退化成恒 False
+  // ==========================================================
+  function safetyFlags() {
+    const occ0 = occGrid();
+    const L = snake.length;
+    const hx = snake[0].x, hy = snake[0].y;
+    const di = dirIdx();
+    const tailCell = snake[L - 1].y * COLS + snake[L - 1].x;
+    const fcell = food ? food.y * COLS + food.x : -1;
+    const safe = [false, false, false];
+    const aliveArr = [false, false, false];
+    for (let a = 0; a < 3; a++) {
+      const nd = (di + TURN_R[a] + 4) % 4;
+      const ny = hy + DIR_ARR[nd].y, nx = hx + DIR_ARR[nd].x;
+      const out = (ny < 0 || ny >= ROWS || nx < 0 || nx >= COLS);
+      const cy = Math.max(0, Math.min(ROWS - 1, ny));
+      const cx = Math.max(0, Math.min(COLS - 1, nx));
+      const ncell = cy * COLS + cx;
+      const ate = (ncell === fcell);              // 与 Python 一致：用裁剪后的格判断
+      const vac = !ate;
+      let hit = occ0[ncell] === 1;
+      if (vac && ncell === tailCell) hit = false; // 尾巴让位的那一格不算撞
+      const alive = !out && !hit;
+      const lengthAfter = L + (ate ? 1 : 0);
+
+      const occ = occ0.slice();
+      occ[tailCell] = 0;      // 目标尾巴格（等价于 Python 里"尾巴让位 + 目标格"两行）
+      occ[ncell] = 0;         // 新头所在格（BFS 起点）
+      const vis = floodVis(occ, ncell, null);
+      let area = 0;
+      for (let i = 0; i < vis.length; i++) area += vis[i];
+      const tailOk = vis[tailCell] === 1;
+      aliveArr[a] = alive;
+      safe[a] = alive && (tailOk || area >= lengthAfter);
+    }
+    // 两级盾：一级（严格）全空时，退到只禁「这一步就会死」的动作（出界 / 撞身体），
+    // 让策略在"可能进死胡同但这一步不会死"的动作里自己挑；连二级都空（三面全堵）
+    // 才放开全部。旧的"一级全空就直接放开"会让最危险的一步完全没有保护 —— 实测
+    // 那正是长蛇阶段 72% 撞墙死亡的来源。
+    if (!safe[0] && !safe[1] && !safe[2]) {
+      if (aliveArr[0] || aliveArr[1] || aliveArr[2]) return aliveArr;
+      return [true, true, true];
+    }
+    return safe;
+  }
+
+  function buildObs() {
+    const occ = occGrid();
+    const hx = snake[0].x, hy = snake[0].y, hcell = hy * COLS + hx;
+    const di = dirIdx();
+
+    // --- BFS + flood fill：身体为障碍，头本身可站 ---
+    const dist = new Int16Array(COLS * ROWS).fill(-1);
+    const vis = floodVis(occ, hcell, dist);
+    let area = 0;
+    for (let i = 0; i < vis.length; i++) area += vis[i];
+
+    const hasFood = !!food;
+    const fcell = hasFood ? food.y * COLS + food.x : -1;
+    const reached = (hasFood && vis[fcell] === 1) ? 1 : 0;
+    const bfsD = reached ? dist[fcell] : -1;
+    let bfsNorm = bfsD < 0 ? 1.0 : bfsD / PHI_SCALE;
+    if (bfsNorm > 1) bfsNorm = 1; else if (bfsNorm < 0) bfsNorm = 0;
+
+    const fy = hasFood ? food.y : 0, fx = hasFood ? food.x : 0;
+    const x = new Float32Array(OB);
+    let k = 0;
+    // 1) 三个相对动作的即时危险（直行/左转/右转）
+    for (let a = 0; a < 3; a++) {
+      const nd = (di + TURN_R[a] + 4) % 4;
+      const ny = hy + DIR_ARR[nd].y, nx = hx + DIR_ARR[nd].x;
+      let bad = 0;
+      if (ny < 0 || ny >= ROWS || nx < 0 || nx >= COLS) bad = 1;
+      else if (occ[ny * COLS + nx]) bad = 1;
+      x[k++] = bad;
+    }
+    // 2) 到四面墙的距离
+    x[k++] = hy / MAXDIM;
+    x[k++] = (ROWS - 1 - hy) / MAXDIM;
+    x[k++] = hx / MAXDIM;
+    x[k++] = (COLS - 1 - hx) / MAXDIM;
+    // 3) 朝向 one-hot
+    for (let i = 0; i < 4; i++) x[k++] = (di === i) ? 1 : 0;
+    // 4) 食物相对位移（归一化）
+    x[k++] = hasFood ? (fx - hx) / (COLS - 1) : 0;
+    x[k++] = hasFood ? (fy - hy) / (ROWS - 1) : 0;
+    // 5) 食物方向多热（上/下/左/右）
+    x[k++] = (fy < hy) ? 1 : 0;
+    x[k++] = (fy > hy) ? 1 : 0;
+    x[k++] = (fx < hx) ? 1 : 0;
+    x[k++] = (fx > hx) ? 1 : 0;
+    // 6) 同行 / 同列
+    x[k++] = (fy === hy) ? 1 : 0;
+    x[k++] = (fx === hx) ? 1 : 0;
+    // 7) BFS 距离 / 食物可达 / 可达面积 / 长度占比
+    x[k++] = bfsNorm;
+    x[k++] = reached;
+    x[k++] = area / (COLS * ROWS);
+    x[k++] = snake.length / (COLS * ROWS);
+
+    // 8) 7x7x3 局部 patch（按朝向旋转：row 增大 = 前方，col 增大 = 蛇的右手边）
+    //    通道顺序 wall, food, body —— 与 Python 的 concatenate 顺序一致
+    const F = DIR_ARR[di], R = DIR_ARR[(di + 1) % 4];
+    const K = 7, rad = 3;
+    for (let ch = 0; ch < 3; ch++) {
+      for (let i = 0; i < K; i++) {
+        const f = i - rad;
+        for (let j = 0; j < K; j++) {
+          const s = j - rad;
+          const py = hy + f * F.y + s * R.y;
+          const px = hx + f * F.x + s * R.x;
+          const valid = (py >= 0 && py < ROWS && px >= 0 && px < COLS);
+          const cellIdx = py * COLS + px;
+          let v = 0;
+          if (!valid) v = (ch === 0) ? 1 : 0;
+          else if (ch === 0) v = 0;
+          else if (ch === 1) v = (cellIdx === fcell) ? 1 : 0;
+          else v = occ[cellIdx] ? 1 : 0;
+          x[k++] = v;
+        }
+      }
+    }
+    return x;
+  }
+
+  function aiAction() {
+    const logits = policyForward(buildObs());
+    if (shieldOn) {
+      // 安全层：屏蔽掉会让尾巴变得不可达的动作。三个动作全不安全时放开全部
+      // （与 Python 的 apply_mask 一致）—— 那种局面下只能听天由命。
+      const safe = safetyFlags();
+      if (safe[0] || safe[1] || safe[2]) {
+        for (let i = 0; i < 3; i++) if (!safe[i]) logits[i] = -1e9;
+      }
+    }
+    let best = 0;
+    for (let i = 1; i < logits.length; i++) if (logits[i] > logits[best]) best = i;
+    return best;
+  }
+
+  function updateAiStats() {
+    if (!aiOn) { elAiStats.textContent = aiEpisodes ? `已测 ${aiEpisodes} 局` : "未启用"; return; }
+    const recent = aiScores.slice(-20);
+    const mean = recent.length ? (recent.reduce((a, b) => a + b, 0) / recent.length).toFixed(1) : "-";
+    elAiStats.textContent = `AI 托管 · 第 ${aiEpisodes + 1} 局 · 最近 ${recent.length} 局均分 ${mean}` +
+                            (aiLastScore !== null ? ` · 上局 ${aiLastScore}` : "") +
+                            ` · 安全层${shieldOn ? "开" : "关"}`;
+  }
+
+  function toggleAI() {
+    aiOn = !aiOn;
+    elAiBtn.classList.toggle("on", aiOn);
+    elAiBtn.textContent = aiOn ? "停止托管" : "AI 托管";
+    if (aiOn) { reset(); start(); }
+    updateAiStats();
+  }
+
+  elAiBtn.addEventListener("click", toggleAI);
+  elAiSpeed.addEventListener("change", e => { aiSpeed = Number(e.target.value); });
+  elShield.addEventListener("change", e => { shieldOn = e.target.checked; updateAiStats(); });
+
+  // ---------- 调试接口（供自动化对拍/测试驱动，正常玩不影响） ----------
+  window.__snakeDebug = {
+    sync: false,                     // true 时主循环不自己推进，由测试逐步调用 apply()
+    reset() { reset(); },
+    start() { start(); },
+    setAI(v) { aiOn = !!v; },
+    setShield(v) { shieldOn = !!v; if (elShield) elShield.checked = shieldOn; },
+    safety() { return safetyFlags(); },
+    apply(a) { queue = []; step(a); },
+    aiAction() { return aiAction(); },
+    obs() { return Array.from(buildObs()); },
+    layers() { return POLICY.layers.map(L => ({name: L.name, act: L.act, in: L.in, out: L.out})); },
+    state() {
+      return {snake: snake.map(s => [s.x, s.y]), dir: dirIdx(),
+              food: food ? [food.x, food.y] : null, score: score,
+              len: snake.length, over: state === "over", playing: state === "playing",
+              ms: stepMs};
+    }
+  };
+
+  // ---------- 主循环 ----------
+  function frame(now) {
+    if (window.__snakeDebug && window.__snakeDebug.sync) {
+      last = now; draw(now); requestAnimationFrame(frame); return;
+    }
+    const dt = Math.min(now - (last || now), 250);
+    if (state === "playing") {
+      last = now;
+      acc += dt;
+      const ms = stepMs / (aiOn ? aiSpeed : 1);
+      while (acc >= ms && state === "playing") {
+        acc -= ms;
+        step(aiOn ? aiAction() : undefined);
+      }
+    } else {
+      last = now;
+    }
+    draw(now);
+    requestAnimationFrame(frame);
+  }
+
+  window.addEventListener("resize", resize);
+  reset();
+  resize();
+  updateAiStats();
+  requestAnimationFrame(t => { last = t; frame(t); });
+})();
+</script>
+</body>
+</html>
