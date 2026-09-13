@@ -151,7 +151,8 @@
     <div class="big" id="ovTitle">准备开始</div>
     <div class="sub" id="ovSub">
       用 <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> 控制方向（或 <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>）<br>
-      按 <b>任意方向键</b> 开始 · <kbd>空格</kbd> 暂停 · <kbd>R</kbd> 重开
+      按 <b>空格</b> 或 <b>任意方向键</b> 开始 · 游戏中 <kbd>空格</kbd> 暂停 · <kbd>R</kbd> 重开<br>
+      <span style="opacity:.75"><kbd>I</kbd> AI 托管 · 点棋盘也能开始</span>
     </div>
   </div>
 </div>
@@ -214,7 +215,8 @@ const POLICY = /*__POLICY_DATA__*/;
     placeFood();
     showOverlay("准备开始",
       '用 <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> 控制方向（或 <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>）<br>' +
-      '按 <b>任意方向键</b> 开始 · <kbd>空格</kbd> 暂停 · <kbd>R</kbd> 重开');
+      '按 <b>空格</b> 或 <b>任意方向键</b> 开始 · 游戏中 <kbd>空格</kbd> 暂停 · <kbd>R</kbd> 重开<br>' +
+      '<span style="opacity:.75"><kbd>I</kbd> AI 托管 · 点棋盘也能开始</span>');
   }
 
   function showOverlay(title, sub) {

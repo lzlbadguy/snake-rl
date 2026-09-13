@@ -20,3 +20,7 @@ game/*.log
 *.log
 .DS_Store
 nohup.out
+
+# 构建产物（由 build_game.py 生成，可随时重建）
+/snake_ai.html
+/snake_manual.html

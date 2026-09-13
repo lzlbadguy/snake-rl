@@ -32,7 +32,37 @@
   （对抗测试 / 隔离测试 / 逐位对拍 / 随机策略压力测试）。今天靠这条习惯抓到 4 个真 bug，
   其中包括**作者自己提出的一个"可证明不死"不变量理论被压力测试在第 3378 步证伪**。
 
-## 快速开始
+## 跑起来（玩游戏）
+
+**第一次（从零）**：权重没进仓库（`.pt` 与内联后的单文件都排除在外），但 `runs/ppo20/policy.json` 进了仓库，
+而 `build_game.py` **只依赖标准库**，所以任何 Python 3 都能重建出可玩的单文件游戏：
+
+```bash
+git clone git@github.com:lzlbadguy/snake-rl.git
+cd snake-rl
+python build_game.py --out snake_ai.html --no-backup   # 不需要 venv / torch / GPU
+firefox snake_ai.html                                  # 或在文件管理器里双击
+```
+
+**已经有构建产物的话**：直接打开那个 HTML 就行（自包含、离线可用、不依赖任何服务）：
+
+```bash
+firefox /home/lzl/snake_ai.html      # 616 KB，权重已内联（ckpt_update=212）
+```
+
+### 操作键
+
+| 键 / 操作 | 作用 |
+|---|---|
+| **`空格`** | **开始游戏**（就绪 / 刚结束时）· 游戏中 = **暂停 / 继续** |
+| **方向键 或 WASD** | 转向；在就绪 / 结束时也能开局 |
+| **点棋盘** | 开局（就绪 / 结束时） |
+| **`I`** | 切换 **AI 托管**（等同右上角按钮） |
+| **`R`** | 重开一局 |
+| 「速度」`1× / 4× / 16×` | AI 托管时的推进速度（看它吃满一盘用 16× 最爽） |
+| 「安全层」☑ | 开关护栏；同一条蛇：**关 66 分 / 开 104 分** |
+
+## 训练与评估
 
 ```bash
 # 环境（Python 3.11 + numpy + torch；GPU 需 CUDA 版 torch）
@@ -57,8 +87,9 @@ uv venv --python 3.11 && uv pip install numpy torch
 .venv/bin/python build_game.py --out snake_ai.html
 ```
 
-游戏：`snake_ai.html`（自包含单文件，双击即玩）。方向键/WASD 操控，空格暂停，R 重开；
-右上角「AI 托管」让模型自己玩，可调 1×/4×/16× 速度，「安全层」开关即时对比有无护栏的表现。
+游戏：`snake_ai.html`（自包含单文件，双击即玩）。操作键见上文表格 ——
+**空格开局 / 游戏中空格暂停**，方向键或 WASD 转向，`R` 重开，`I` 切换 AI 托管，
+右上角可调 1×/4×/16× 速度与「安全层」开关（即时对比有无护栏的表现）。
 
 ## 目录
 
