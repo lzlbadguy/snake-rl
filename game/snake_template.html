@@ -451,7 +451,11 @@ const POLICY = /*__POLICY_DATA__*/;
   //  观测必须与 snake_env.py 的 VectorSnake.observe() 逐项一致，
   //  否则策略会看到"训练时从未见过的输入"。
   // ==========================================================
-  const OB = POLICY.obs_dim;
+  // 直接打开模板（未经 build_game.py 内联权重）时 POLICY 是 undefined。
+  // 必须在这里退化处理：否则下面取值会抛 TypeError，把整个脚本（含手动玩）一起带崩 —— 
+  // 这正是"点 snake_template.html 启动不了游戏"的原因。
+  const HAS_POLICY = typeof POLICY === "object" && POLICY !== null && Array.isArray(POLICY.layers);
+  const OB = HAS_POLICY ? POLICY.obs_dim : 170;   // 占位值，仅用于让脚本能跑起来
   const MAXDIM = 20, PHI_SCALE = 40;
   const DIR_ARR = [DIRS.up, DIRS.right, DIRS.down, DIRS.left];  // 与 Python 的 DY/DX 同序
   const TURN_R = [0, -1, 1];                                    // 0=直行 1=左转 2=右转
@@ -466,6 +470,7 @@ const POLICY = /*__POLICY_DATA__*/;
     return new Float32Array(u8.buffer);
   }
   (function initPolicy() {
+    if (!HAS_POLICY) return;                 // 模板直开：跳过，AI 托管不可用
     for (const L of POLICY.layers) {
       L.W = b64ToF32(L.w);      // (out, in) 行主序
       L.B = b64ToF32(L.b);
@@ -677,6 +682,13 @@ const POLICY = /*__POLICY_DATA__*/;
   }
 
   function toggleAI() {
+    if (!HAS_POLICY) {
+      showOverlay("模板文件 · 未内联权重",
+        '这是构建模板，AI 权重还没内联进来，所以 <b>AI 托管不可用</b>。<br>' +
+        '请先生成带权重的成品：<code>python build_game.py --out snake_ai.html --no-backup</code><br>' +
+        '<span style="opacity:.75">然后打开 snake_ai.html。现在依然可以用 <kbd>空格</kbd> / 方向键 手动玩。</span>');
+      return;
+    }
     aiOn = !aiOn;
     elAiBtn.classList.toggle("on", aiOn);
     elAiBtn.textContent = aiOn ? "停止托管" : "AI 托管";
@@ -685,6 +697,15 @@ const POLICY = /*__POLICY_DATA__*/;
   }
 
   elAiBtn.addEventListener("click", toggleAI);
+
+  // 模板直开时：把 AI 按钮标灰并在提示行写明原因，避免"点了没反应"的困惑
+  if (!HAS_POLICY) {
+    elAiBtn.style.opacity = "0.45";
+    elAiBtn.title = "模板文件未内联权重：请先运行 build_game.py 生成 snake_ai.html";
+    elAiBtn.textContent = "AI 托管（需构建）";
+    if (hint) hint.innerHTML = '⚠ 模板文件（未内联权重）· <kbd>空格</kbd> 或方向键可手动玩' +
+                               ' · 生成成品：<code>python build_game.py</code>';
+  }
   elAiSpeed.addEventListener("change", e => { aiSpeed = Number(e.target.value); });
   elShield.addEventListener("change", e => { shieldOn = e.target.checked; updateAiStats(); });
 

@@ -50,6 +50,13 @@ firefox snake_ai.html                                  # 或在文件管理器�
 firefox /home/lzl/snake_ai.html      # 616 KB，权重已内联（ckpt_update=212）
 ```
 
+### 注意：别直接打开 `game/snake_template.html`
+
+`game/snake_template.html` 是**构建模板**（AI 权重的位置还是占位符 `/*__POLICY_DATA__*/`），
+直接打开它 **AI 托管用不了**——页面会明确提示，人仍可用空格 / 方向键手动玩。
+要玩带 AI 的版本，请用上面两种方式之一打开 **`snake_ai.html`**（权重已内联）。
+玩游戏**不需要启动任何服务**；`node game/parity_server.js 8733` 只是跑"浏览器↔Python 逐位对拍"测试用的。
+
 ### 操作键
 
 | 键 / 操作 | 作用 |
